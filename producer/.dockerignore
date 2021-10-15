@@ -1,0 +1,7 @@
+public/packs
+public/packs-test
+node_modules
+spec/e2e/node_modules
+coverage
+tmp
+.github

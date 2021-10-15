@@ -1,0 +1,61 @@
+FROM ruby:3.0.2-alpine as base
+
+WORKDIR /app
+
+# Set link to /usr/bin/ruby
+RUN ln -s `which ruby` /usr/bin/ruby &&\
+  # Install bundler
+  gem install bundler &&\
+  # Config gems path
+  bundle config path /usr/local/bundle/
+
+# Install base dependencies:
+# - imagemagick: for image processing
+# - libxslt-dev libxml2-dev: Nokogiri native dependencies
+# - yarn: Compile js assets
+# - postgresql-dev postgresql-client: Communicate with postgres through the postgres gem
+RUN apk --update add \
+  imagemagick \
+  libxml2-dev \
+  libxslt-dev \
+  postgresql-client \
+  postgresql-dev \
+  tzdata \
+  yarn
+
+##############################################################################
+FROM base as builder
+
+# Install builder dependencies:
+# - build-base: To compile certain gems
+RUN apk --update add build-base
+
+# Build ruby gems
+COPY Gemfile* ./
+RUN bundle install
+
+##############################################################################
+FROM base AS final
+
+WORKDIR /app
+
+# Install node version manager
+RUN yarn global add n
+
+# Install JS dependencies
+COPY package.json ./
+COPY yarn.lock ./
+RUN yarn install
+
+# Copy the builded ruby gems
+COPY --from=builder /usr/local/bundle/ /usr/local/bundle/
+
+# Set the required node version
+COPY .nvmrc /app/.nvmrc
+# RUN n $(cat /app/.nvmrc)
+
+# Copy the main application.
+COPY . ./
+
+# Start the main process.
+CMD ["./run.sh", "server"]

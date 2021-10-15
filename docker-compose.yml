@@ -1,0 +1,100 @@
+# docker-compose file based on:
+# https://github.com/confluentinc/cp-all-in-one/blob/6.2.1-post/cp-all-in-one-community/docker-compose.yml
+version: '2'
+
+volumes:
+  kdata:
+  ksecrets:
+  klogs:
+  pdata:
+  zdata:
+  zlog:
+  zsecrets:
+  webcache:
+  bundlerdata:
+
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:6.2.1
+    hostname: zookeeper
+    container_name: zookeeper
+    ports:
+      - 2181:2181
+    volumes:
+      - zdata:/var/lib/zookeeper/data
+      - zlog:/var/lib/zookeeper/log
+      - zsecrets:/etc/zookeeper/secrets
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+
+  kafka:
+    image: confluentinc/cp-kafka:6.2.1
+    hostname: kafka
+    container_name: kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - 29092:29092
+      - 9092:9092
+      - 9101:9101
+    volumes:
+      - kdata:/var/lib/kafka/data
+      - klogs:/var/log/kafka
+      - ksecrets:/etc/kafka/secrets
+      - ./kafka:/opt
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_JMX_PORT: 9101
+      KAFKA_JMX_HOSTNAME: localhost
+
+  schema-registry:
+    image: confluentinc/cp-schema-registry:6.2.1
+    hostname: schema-registry
+    container_name: schema-registry
+    depends_on:
+      - kafka
+    ports:
+      - 8081:8081
+    environment:
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: 'kafka:29092'
+      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+
+  postgres:
+    image: postgres:11.5-alpine
+    hostname: postgres
+    container_name: postgres
+    ports:
+      - 5432:5432
+    volumes:
+      - pdata:/var/lib/postgresql/data
+
+  producer:
+    build:
+      context: ./producer
+      dockerfile: ./Dockerfile
+    container_name: producer
+    depends_on:
+      - postgres
+    volumes:
+      - ./producer:/app
+      - webcache:/tmp/railscache
+      - bundlerdata:/usr/local/bundle
+    ports:
+      - 3000:3000
+    environment:
+      LANG: en_US.UTF-8
+      LANGUAGE: en_US.UTF-8
+      LC_ALL: en_US.UTF-8
+      DOCKER_ENV: 'true'
+      RAILS_ENV: development
+      SPROCKETS_CACHE: /tmp/railscache
+      DATABASE_URL: postgres://postgres@postgres:5432

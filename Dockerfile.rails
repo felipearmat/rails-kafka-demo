@@ -47,16 +47,16 @@ WORKDIR /app
 RUN yarn global add n
 
 # Install JS dependencies
-COPY package.json ./
-COPY yarn.lock ./
-RUN yarn install
+# COPY package.json ./
+# COPY yarn.lock ./
+# RUN yarn install
 
 # Copy the builded ruby gems
 COPY --from=builder /usr/local/bundle/ /usr/local/bundle/
 
 # Set the required node version
-COPY .nvmrc /app/.nvmrc
-RUN n $(cat /app/.nvmrc)
+# COPY .nvmrc /app/.nvmrc
+# RUN n $(cat /app/.nvmrc)
 
 # Copy the main application.
 COPY . ./

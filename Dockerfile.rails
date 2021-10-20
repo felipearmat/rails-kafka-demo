@@ -10,11 +10,13 @@ RUN ln -s `which ruby` /usr/bin/ruby &&\
   bundle config path /usr/local/bundle/
 
 # Install base dependencies:
+# - bash: nvm uses it for setting node
 # - imagemagick: for image processing
 # - libxslt-dev libxml2-dev: Nokogiri native dependencies
 # - yarn: Compile js assets
 # - postgresql-dev postgresql-client: Communicate with postgres through the postgres gem
 RUN apk --update add \
+  bash \
   imagemagick \
   libxml2-dev \
   libxslt-dev \
@@ -28,7 +30,9 @@ FROM base as builder
 
 # Install builder dependencies:
 # - build-base: To compile certain gems
-RUN apk --update add build-base
+# - make: Gmake - mandatory for some gems build
+# - cmake: Cmake - mandatory for some gems build
+RUN apk --update add build-base make cmake
 
 # Build ruby gems
 COPY Gemfile* ./
@@ -52,7 +56,7 @@ COPY --from=builder /usr/local/bundle/ /usr/local/bundle/
 
 # Set the required node version
 COPY .nvmrc /app/.nvmrc
-# RUN n $(cat /app/.nvmrc)
+RUN n $(cat /app/.nvmrc)
 
 # Copy the main application.
 COPY . ./

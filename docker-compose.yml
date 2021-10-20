@@ -80,8 +80,11 @@ services:
   producer:
     build:
       context: ./producer
-      dockerfile: ./Dockerfile
+      dockerfile: ../Dockerfile.rails
     container_name: producer
+    hostname: producer
+    command: bash
+    tty: true
     depends_on:
       - postgres
     volumes:
